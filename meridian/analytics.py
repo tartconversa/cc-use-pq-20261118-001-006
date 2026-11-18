@@ -40,9 +40,7 @@ class EvidenceAnalytics:
             return "outside_audience"
         return "eligible"
 
-    def report(self, payload):
-        spec = report_query(payload)
-        observed = self._rows(spec)
+    def _summarize(self, observed, spec):
         exclusions = Counter()
         groups = defaultdict(list)
         provenance = []
@@ -92,11 +90,20 @@ class EvidenceAnalytics:
                                               for key, value in sorted(data["stances"].items())},
                             "topic_counts": dict(sorted(data["topics"].items())),
                             "audience_counts": dict(sorted(data["audiences"].items()))})
-        return {"query": spec, "query_hash": digest(spec), "event_head": self.store.head(),
-                "observations_in_window": len(observed), "eligible_observations": sum(len(v) for v in groups.values()),
-                "excluded": dict(sorted(exclusions.items())), "story_count": len(story_rows),
-                "stories": story_rows, "regions": regions,
+        return {"excluded": dict(sorted(exclusions.items())), "stories": story_rows,
+                "regions": regions, "eligible_observations": sum(len(v) for v in groups.values()),
                 "provenance": sorted(provenance, key=lambda item: (item["origin"], item["external_id"]))}
+
+    def report(self, payload):
+        spec = report_query(payload)
+        observed = self._rows(spec)
+        summary = self._summarize(observed, spec)
+        return {"query": spec, "query_hash": digest(spec), "event_head": self.store.head(),
+                "observations_in_window": len(observed),
+                "eligible_observations": summary["eligible_observations"],
+                "excluded": summary["excluded"], "story_count": len(summary["stories"]),
+                "stories": summary["stories"], "regions": summary["regions"],
+                "provenance": summary["provenance"]}
 
     def trace_story(self, spec, region, story_key):
         report = self.report(spec)

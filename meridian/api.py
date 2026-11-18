@@ -97,6 +97,11 @@ class RegionComparisonInput(BaseModel):
     right_region: str
 
 
+class DecisionImpactInput(BaseModel):
+    decision_id: str
+    query: ReportInput
+
+
 def create_app(path="meridian.sqlite3"):
     app = FastAPI(title="Meridian evidence analytics", version="1.0")
     service = MeridianService(path)
@@ -229,6 +234,19 @@ def create_app(path="meridian.sqlite3"):
     def compare_regions(payload: RegionComparisonInput):
         return service.comparisons.regions(payload.query.model_dump(), payload.left_region, payload.right_region)
 
+    @app.post("/reports/agreement")
+    def agreement_strata(payload: ReportInput):
+        return service.agreement.strata(payload.model_dump())
+
+    @app.post("/reports/agreement-contrast")
+    def agreement_contrast(payload: RegionComparisonInput):
+        return service.agreement.contrast(payload.query.model_dump(), payload.left_region,
+                                          payload.right_region)
+
+    @app.post("/reports/decision-impact")
+    def decision_impact(payload: DecisionImpactInput):
+        return service.agreement.decision_impact(payload.decision_id, payload.query.model_dump())
+
     @app.post("/releases")
     def publish(payload: ReleaseInput):
         return service.releases.publish(payload.release_id, payload.query.model_dump(), payload.token,
@@ -246,6 +264,10 @@ def create_app(path="meridian.sqlite3"):
     @app.get("/releases/{release_id}/changes")
     def release_changes(release_id: str):
         return service.provenance.release_changes(release_id)
+
+    @app.get("/releases/{release_id}/change-causes")
+    def release_change_causes(release_id: str):
+        return service.agreement.change_causes(release_id)
 
     @app.get("/releases/{release_id}/export")
     def export_release(release_id: str):

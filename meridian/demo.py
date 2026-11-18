@@ -51,14 +51,22 @@ def scenario():
         assert preview["report"]["story_count"] == 2
         release = service.releases.publish("november", query(), preview["token"])
         assert release["report"]["story_count"] == 2
+        strata = service.agreement.strata(query())
+        assert strata["observations_in_window"] == 3
+        impact = service.agreement.decision_impact("a-reviewer-a", query())
+        assert impact["stories"] and impact["releases"][0]["release_id"] == "november"
         service.observations.retract("local-fixture", "c", "bad source record", expected_revision=1)
         comparison = service.releases.compare("november")
         assert comparison["story_count_delta"] == -1
         assert service.releases.describe("november")["report"]["story_count"] == 2
+        causes = service.agreement.change_causes("november")
+        assert causes["summary"]["composition_only"] == 1
         audit = service.audit.run()
         assert audit["ok"]
         result = {"batch": batch["state"], "released_stories": 2,
-                  "current_delta": comparison["story_count_delta"], "audit": audit["ok"]}
+                  "current_delta": comparison["story_count_delta"], "audit": audit["ok"],
+                  "agreement_sources": len(strata["sources"]),
+                  "retraction_causes": causes["summary"]["composition_only"]}
         service.close()
         return result
 
